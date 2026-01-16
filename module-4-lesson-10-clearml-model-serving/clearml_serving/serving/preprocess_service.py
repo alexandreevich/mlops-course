@@ -27,9 +27,9 @@ class BasePreprocessRequest(object):
     is_postprocess_async = False
 
     def __init__(
-            self,
-            model_endpoint: ModelEndpoint,
-            task: Task = None,
+        self,
+        model_endpoint: ModelEndpoint,
+        task: Task = None,
     ):
         """
         Notice this object is not be created per request, but once per Process
@@ -39,42 +39,69 @@ class BasePreprocessRequest(object):
         self._preprocess = None
         self._model = None
         if self._timeout is None:
-            self._timeout = int(float(os.environ.get('GUNICORN_SERVING_TIMEOUT', 600)) * 0.8)
+            self._timeout = int(
+                float(os.environ.get("GUNICORN_SERVING_TIMEOUT", 600)) * 0.8
+            )
 
         # load preprocessing code here
         if self.model_endpoint.preprocess_artifact:
-            if not task or self.model_endpoint.preprocess_artifact not in task.artifacts:
-                raise ValueError("Error: could not find preprocessing artifact \'{}\' on Task id={}".format(
-                    self.model_endpoint.preprocess_artifact, task.id))
+            if (
+                not task
+                or self.model_endpoint.preprocess_artifact not in task.artifacts
+            ):
+                raise ValueError(
+                    "Error: could not find preprocessing artifact '{}' on Task id={}".format(
+                        self.model_endpoint.preprocess_artifact, task.id
+                    )
+                )
             else:
                 try:
                     self._instantiate_custom_preprocess_cls(task)
                 except Exception as ex:
-                    raise ValueError("Error: Failed loading preprocess code for \'{}\': {}\n\n{}".format(
-                        self.model_endpoint.preprocess_artifact, ex, traceback.format_exc()))
+                    raise ValueError(
+                        "Error: Failed loading preprocess code for '{}': {}\n\n{}".format(
+                            self.model_endpoint.preprocess_artifact,
+                            ex,
+                            traceback.format_exc(),
+                        )
+                    )
 
     def _instantiate_custom_preprocess_cls(self, task: Task) -> None:
-        path = task.artifacts[self.model_endpoint.preprocess_artifact].get_local_copy(extract_archive=False)
+        path = task.artifacts[self.model_endpoint.preprocess_artifact].get_local_copy(
+            extract_archive=False
+        )
         if not path or not Path(path).exists():
-            raise ValueError("Artifact '{}' could not be downloaded".format(self.model_endpoint.preprocess_artifact))
+            raise ValueError(
+                "Artifact '{}' could not be downloaded".format(
+                    self.model_endpoint.preprocess_artifact
+                )
+            )
 
         # check file content hash, should only happen once?!
         # noinspection PyProtectedMember
         file_hash, _ = sha256sum(path, block_size=Artifacts._hash_block_size)
         if file_hash != task.artifacts[self.model_endpoint.preprocess_artifact].hash:
-            print("INFO: re-downloading artifact '{}' hash changed".format(
-                self.model_endpoint.preprocess_artifact))
-            path = task.artifacts[self.model_endpoint.preprocess_artifact].get_local_copy(
+            print(
+                "INFO: re-downloading artifact '{}' hash changed".format(
+                    self.model_endpoint.preprocess_artifact
+                )
+            )
+            path = task.artifacts[
+                self.model_endpoint.preprocess_artifact
+            ].get_local_copy(
                 extract_archive=True,
                 force_download=True,
             )
         else:
             # extract zip if we need to, otherwise it will be the same
-            path = task.artifacts[self.model_endpoint.preprocess_artifact].get_local_copy(
+            path = task.artifacts[
+                self.model_endpoint.preprocess_artifact
+            ].get_local_copy(
                 extract_archive=True,
             )
 
         import importlib.util
+
         if Path(path).is_file():
             spec = importlib.util.spec_from_file_location("Preprocess", path)
             _preprocess = importlib.util.module_from_spec(spec)
@@ -83,7 +110,8 @@ class BasePreprocessRequest(object):
             submodules_path = [Path(path).as_posix()] + sys.path
             module_name = str(self.model_endpoint.preprocess_artifact).replace(".", "_")
             spec = importlib.util.spec_from_file_location(
-                module_name, location=(Path(path) / "__init__.py").as_posix(),
+                module_name,
+                location=(Path(path) / "__init__.py").as_posix(),
                 submodule_search_locations=submodules_path,
             )
             _preprocess = importlib.util.module_from_spec(spec)
@@ -98,14 +126,14 @@ class BasePreprocessRequest(object):
         # update the model endpoint on the instance we created
         self._preprocess.model_endpoint = self.model_endpoint
         # custom model load callback function
-        if callable(getattr(self._preprocess, 'load', None)):
+        if callable(getattr(self._preprocess, "load", None)):
             self._model = self._preprocess.load(self._get_local_model_file())
 
     def preprocess(
-            self,
-            request: dict,
-            state: dict,
-            collect_custom_statistics_fn: Callable[[dict], None] = None,
+        self,
+        request: dict,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
     ) -> Optional[Any]:
         """
         Raise exception to report an error
@@ -128,15 +156,17 @@ class BasePreprocessRequest(object):
 
         :return: Object to be passed directly to the model inference
         """
-        if self._preprocess is not None and hasattr(self._preprocess, 'preprocess'):
-            return self._preprocess.preprocess(request, state, collect_custom_statistics_fn)
+        if self._preprocess is not None and hasattr(self._preprocess, "preprocess"):
+            return self._preprocess.preprocess(
+                request, state, collect_custom_statistics_fn
+            )
         return request
 
     def postprocess(
-            self,
-            data: Any,
-            state: dict,
-            collect_custom_statistics_fn: Callable[[dict], None] = None
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
     ) -> Optional[dict]:
         """
         Raise exception to report an error
@@ -157,15 +187,17 @@ class BasePreprocessRequest(object):
 
         :return: Dictionary passed directly as the returned result of the RestAPI
         """
-        if self._preprocess is not None and hasattr(self._preprocess, 'postprocess'):
-            return self._preprocess.postprocess(data, state, collect_custom_statistics_fn)
+        if self._preprocess is not None and hasattr(self._preprocess, "postprocess"):
+            return self._preprocess.postprocess(
+                data, state, collect_custom_statistics_fn
+            )
         return data
 
     def process(
-            self,
-            data: Any,
-            state: dict,
-            collect_custom_statistics_fn: Callable[[dict], None] = None
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
     ) -> Any:
         """
         The actual processing function. Can be sent to external service
@@ -210,7 +242,9 @@ class BasePreprocessRequest(object):
         return cls.__preprocessing_lookup.get(engine)
 
     @staticmethod
-    def register_engine(engine_name: str, modules: Optional[List[str]] = None) -> Callable:
+    def register_engine(
+        engine_name: str, modules: Optional[List[str]] = None
+    ) -> Callable:
         """
         A decorator to register an annotation type name for classes deriving from Annotation
         """
@@ -230,17 +264,28 @@ class BasePreprocessRequest(object):
             try:
                 # silently fail
                 import importlib
+
                 importlib.import_module(m)
             except (ImportError, TypeError):
                 pass
 
     @staticmethod
-    def _preprocess_send_request(_, endpoint: str, version: str = None, data: dict = None) -> Optional[dict]:
-        endpoint = "{}/{}".format(endpoint.strip("/"), version.strip("/")) if version else endpoint.strip("/")
+    def _preprocess_send_request(
+        _, endpoint: str, version: str = None, data: dict = None
+    ) -> Optional[dict]:
+        endpoint = (
+            "{}/{}".format(endpoint.strip("/"), version.strip("/"))
+            if version
+            else endpoint.strip("/")
+        )
         base_url = BasePreprocessRequest.get_server_config().get("base_serving_url")
-        base_url = (base_url or BasePreprocessRequest._default_serving_base_url).strip("/")
+        base_url = (base_url or BasePreprocessRequest._default_serving_base_url).strip(
+            "/"
+        )
         url = "{}/{}".format(base_url, endpoint.strip("/"))
-        return_value = request_post(url, json=data, timeout=BasePreprocessRequest._timeout)
+        return_value = request_post(
+            url, json=data, timeout=BasePreprocessRequest._timeout
+        )
         if not return_value.ok:
             return None
         return return_value.json()
@@ -249,18 +294,18 @@ class BasePreprocessRequest(object):
 @BasePreprocessRequest.register_engine("triton", modules=["grpc", "tritonclient"])
 class TritonPreprocessRequest(BasePreprocessRequest):
     with warnings.catch_warnings():
-        warnings.simplefilter(action='ignore', category=FutureWarning)
+        warnings.simplefilter(action="ignore", category=FutureWarning)
         _content_lookup = {
-            getattr(np, 'int', int): 'int_contents',
-            np.uint8: 'uint_contents',
-            np.int8: 'int_contents',
-            np.int64: 'int64_contents',
-            np.uint64: 'uint64_contents',
-            np.int32: 'int_contents',
-            np.uint: 'uint_contents',
-            getattr(np, 'bool', bool): 'bool_contents',
-            np.float32: 'fp32_contents',
-            np.float64: 'fp64_contents',
+            getattr(np, "int", int): "int_contents",
+            np.uint8: "uint_contents",
+            np.int8: "int_contents",
+            np.int64: "int64_contents",
+            np.uint64: "uint64_contents",
+            np.int32: "int_contents",
+            np.uint: "uint_contents",
+            getattr(np, "bool", bool): "bool_contents",
+            np.float32: "fp32_contents",
+            np.float64: "fp64_contents",
         }
     _default_grpc_address = "127.0.0.1:8001"
     _default_grpc_compression = False
@@ -274,29 +319,33 @@ class TritonPreprocessRequest(BasePreprocessRequest):
 
     def __init__(self, model_endpoint: ModelEndpoint, task: Task = None):
         super(TritonPreprocessRequest, self).__init__(
-            model_endpoint=model_endpoint, task=task)
+            model_endpoint=model_endpoint, task=task
+        )
 
         # load Triton Module
         if self._ext_grpc is None:
             from tritonclient.grpc import grpc  # noqa
+
             self._ext_grpc = grpc
 
         if self._ext_np_to_triton_dtype is None:
             from tritonclient.utils import np_to_triton_dtype  # noqa
+
             self._ext_np_to_triton_dtype = np_to_triton_dtype
 
         if self._ext_service_pb2 is None:
             from tritonclient.grpc.aio import service_pb2, service_pb2_grpc  # noqa
+
             self._ext_service_pb2 = service_pb2
             self._ext_service_pb2_grpc = service_pb2_grpc
 
         self._grpc_stub = {}
 
     async def process(
-            self,
-            data: Any,
-            state: dict,
-            collect_custom_statistics_fn: Callable[[dict], None] = None
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
     ) -> Any:
         """
         The actual processing function.
@@ -320,10 +369,14 @@ class TritonPreprocessRequest(BasePreprocessRequest):
         """
         # allow overriding the process method
         if self._preprocess is not None and hasattr(self._preprocess, "process"):
-            return await self._preprocess.process(data, state, collect_custom_statistics_fn)
+            return await self._preprocess.process(
+                data, state, collect_custom_statistics_fn
+            )
 
         # Create gRPC stub for communicating with the server
-        triton_server_address = self._server_config.get("triton_grpc_server") or self._default_grpc_address
+        triton_server_address = (
+            self._server_config.get("triton_grpc_server") or self._default_grpc_address
+        )
         if not triton_server_address:
             raise ValueError("External Triton gRPC server is not configured!")
 
@@ -341,22 +394,33 @@ class TritonPreprocessRequest(BasePreprocessRequest):
                             v = float(v)
                         except:  # noqa
                             pass
-                    channel_opt.append(('grpc.{}'.format(k[len(self._grpc_env_conf_prefix):]), v))
+                    channel_opt.append(
+                        ("grpc.{}".format(k[len(self._grpc_env_conf_prefix) :]), v)
+                    )
 
             try:
-                channel = self._ext_grpc.aio.insecure_channel(triton_server_address, options=channel_opt or None)
+                channel = self._ext_grpc.aio.insecure_channel(
+                    triton_server_address, options=channel_opt or None
+                )
                 grpc_stub = self._ext_service_pb2_grpc.GRPCInferenceServiceStub(channel)
                 self._grpc_stub[tid] = grpc_stub
             except Exception as ex:
-                raise ValueError("External Triton gRPC server misconfigured [{}]: {}".format(triton_server_address, ex))
+                raise ValueError(
+                    "External Triton gRPC server misconfigured [{}]: {}".format(
+                        triton_server_address, ex
+                    )
+                )
 
-        use_compression = self._server_config.get("triton_grpc_compression", self._default_grpc_compression)
+        use_compression = self._server_config.get(
+            "triton_grpc_compression", self._default_grpc_compression
+        )
 
         # Generate the request
         request = self._ext_service_pb2.ModelInferRequest()
         if self.model_endpoint.version:
             request.model_name = "{}_{}".format(
-                self.model_endpoint.serving_url, self.model_endpoint.version).strip("/")
+                self.model_endpoint.serving_url, self.model_endpoint.version
+            ).strip("/")
         else:
             request.model_name = str(self.model_endpoint.serving_url).strip("/")
 
@@ -368,8 +432,10 @@ class TritonPreprocessRequest(BasePreprocessRequest):
 
         # Populate the inputs in inference request
         for i_data, m_name, m_type, m_size in zip(
-                list_data, self.model_endpoint.input_name,
-                self.model_endpoint.input_type, self.model_endpoint.input_size
+            list_data,
+            self.model_endpoint.input_name,
+            self.model_endpoint.input_type,
+            self.model_endpoint.input_size,
         ):
             # take the input data
             input_data = np.array(i_data, dtype=m_type)
@@ -399,13 +465,21 @@ class TritonPreprocessRequest(BasePreprocessRequest):
         # send infer request over gRPC
         compression = None
         try:
-            compression = self._ext_grpc.Compression.Gzip if use_compression \
+            compression = (
+                self._ext_grpc.Compression.Gzip
+                if use_compression
                 else self._ext_grpc.Compression.NoCompression
-            response = await grpc_stub.ModelInfer(request, compression=compression, timeout=self._timeout)
+            )
+            response = await grpc_stub.ModelInfer(
+                request, compression=compression, timeout=self._timeout
+            )
         except Exception as ex:
-            print("Exception calling Triton RPC function: "
-                  "request_inputs={}, ".format([(r.name, r.shape, r.datatype) for r in (request.inputs or [])]) +
-                  f"triton_address={triton_server_address}, compression={compression}, timeout={self._timeout}:\n{ex}")
+            print(
+                "Exception calling Triton RPC function: request_inputs={}, ".format(
+                    [(r.name, r.shape, r.datatype) for r in (request.inputs or [])]
+                )
+                + f"triton_address={triton_server_address}, compression={compression}, timeout={self._timeout}:\n{ex}"
+            )
             raise
 
         # process result
@@ -418,7 +492,9 @@ class TritonPreprocessRequest(BasePreprocessRequest):
             output_results.append(
                 np.frombuffer(
                     response.raw_output_contents[index],
-                    dtype=self.model_endpoint.output_type[min(i, len(self.model_endpoint.output_type)-1)]
+                    dtype=self.model_endpoint.output_type[
+                        min(i, len(self.model_endpoint.output_type) - 1)
+                    ],
                 )
             )
             output_results[-1] = np.resize(output_results[-1], shape)
@@ -432,13 +508,20 @@ class TritonPreprocessRequest(BasePreprocessRequest):
 class SKLearnPreprocessRequest(BasePreprocessRequest):
     def __init__(self, model_endpoint: ModelEndpoint, task: Task = None):
         super(SKLearnPreprocessRequest, self).__init__(
-            model_endpoint=model_endpoint, task=task)
+            model_endpoint=model_endpoint, task=task
+        )
         if self._model is None:
             # get model
             import joblib  # noqa
+
             self._model = joblib.load(filename=self._get_local_model_file())
 
-    def process(self, data: Any, state: dict, collect_custom_statistics_fn: Callable[[dict], None] = None) -> Any:
+    def process(
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
+    ) -> Any:
         """
         The actual processing function.
         We run the model in this context
@@ -450,14 +533,21 @@ class SKLearnPreprocessRequest(BasePreprocessRequest):
 class XGBoostPreprocessRequest(BasePreprocessRequest):
     def __init__(self, model_endpoint: ModelEndpoint, task: Task = None):
         super(XGBoostPreprocessRequest, self).__init__(
-            model_endpoint=model_endpoint, task=task)
+            model_endpoint=model_endpoint, task=task
+        )
         if self._model is None:
             # get model
             import xgboost  # noqa
+
             self._model = xgboost.Booster()
             self._model.load_model(self._get_local_model_file())
 
-    def process(self, data: Any, state: dict, collect_custom_statistics_fn: Callable[[dict], None] = None) -> Any:
+    def process(
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
+    ) -> Any:
         """
         The actual processing function.
         We run the model in this context
@@ -469,13 +559,20 @@ class XGBoostPreprocessRequest(BasePreprocessRequest):
 class LightGBMPreprocessRequest(BasePreprocessRequest):
     def __init__(self, model_endpoint: ModelEndpoint, task: Task = None):
         super(LightGBMPreprocessRequest, self).__init__(
-            model_endpoint=model_endpoint, task=task)
+            model_endpoint=model_endpoint, task=task
+        )
         if self._model is None:
             # get model
             import lightgbm  # noqa
+
             self._model = lightgbm.Booster(model_file=self._get_local_model_file())
 
-    def process(self, data: Any, state: dict, collect_custom_statistics_fn: Callable[[dict], None] = None) -> Any:
+    def process(
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
+    ) -> Any:
         """
         The actual processing function.
         We run the model in this context
@@ -487,14 +584,20 @@ class LightGBMPreprocessRequest(BasePreprocessRequest):
 class CustomPreprocessRequest(BasePreprocessRequest):
     def __init__(self, model_endpoint: ModelEndpoint, task: Task = None):
         super(CustomPreprocessRequest, self).__init__(
-            model_endpoint=model_endpoint, task=task)
+            model_endpoint=model_endpoint, task=task
+        )
 
-    def process(self, data: Any, state: dict, collect_custom_statistics_fn: Callable[[dict], None] = None) -> Any:
+    def process(
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
+    ) -> Any:
         """
         The actual processing function.
         We run the process in this context
         """
-        if self._preprocess is not None and hasattr(self._preprocess, 'process'):
+        if self._preprocess is not None and hasattr(self._preprocess, "process"):
             return self._preprocess.process(data, state, collect_custom_statistics_fn)
         return None
 
@@ -508,19 +611,23 @@ class CustomAsyncPreprocessRequest(BasePreprocessRequest):
 
     def __init__(self, model_endpoint: ModelEndpoint, task: Task = None):
         super(CustomAsyncPreprocessRequest, self).__init__(
-            model_endpoint=model_endpoint, task=task)
+            model_endpoint=model_endpoint, task=task
+        )
         # load asyncio only when needed, basically python < 3.10 does not supported to_thread
         if CustomAsyncPreprocessRequest.asyncio_to_thread is None:
             from asyncio import to_thread as asyncio_to_thread
+
             CustomAsyncPreprocessRequest.asyncio_to_thread = asyncio_to_thread
         # override `send_request` method with the async version
-        self._preprocess.__class__.send_request = CustomAsyncPreprocessRequest._preprocess_send_request
+        self._preprocess.__class__.send_request = (
+            CustomAsyncPreprocessRequest._preprocess_send_request
+        )
 
     async def preprocess(
-            self,
-            request: dict,
-            state: dict,
-            collect_custom_statistics_fn: Callable[[dict], None] = None,
+        self,
+        request: dict,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
     ) -> Optional[Any]:
         """
         Raise exception to report an error
@@ -543,15 +650,17 @@ class CustomAsyncPreprocessRequest(BasePreprocessRequest):
 
         :return: Object to be passed directly to the model inference
         """
-        if self._preprocess is not None and hasattr(self._preprocess, 'preprocess'):
-            return await self._preprocess.preprocess(request, state, collect_custom_statistics_fn)
+        if self._preprocess is not None and hasattr(self._preprocess, "preprocess"):
+            return await self._preprocess.preprocess(
+                request, state, collect_custom_statistics_fn
+            )
         return request
 
     async def postprocess(
-            self,
-            data: Any,
-            state: dict,
-            collect_custom_statistics_fn: Callable[[dict], None] = None
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
     ) -> Optional[dict]:
         """
         Raise exception to report an error
@@ -572,27 +681,45 @@ class CustomAsyncPreprocessRequest(BasePreprocessRequest):
 
         :return: Dictionary passed directly as the returned result of the RestAPI
         """
-        if self._preprocess is not None and hasattr(self._preprocess, 'postprocess'):
-            return await self._preprocess.postprocess(data, state, collect_custom_statistics_fn)
+        if self._preprocess is not None and hasattr(self._preprocess, "postprocess"):
+            return await self._preprocess.postprocess(
+                data, state, collect_custom_statistics_fn
+            )
         return data
 
-    async def process(self, data: Any, state: dict, collect_custom_statistics_fn: Callable[[dict], None] = None) -> Any:
+    async def process(
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Callable[[dict], None] = None,
+    ) -> Any:
         """
         The actual processing function.
         We run the process in this context
         """
-        if self._preprocess is not None and hasattr(self._preprocess, 'process'):
-            return await self._preprocess.process(data, state, collect_custom_statistics_fn)
+        if self._preprocess is not None and hasattr(self._preprocess, "process"):
+            return await self._preprocess.process(
+                data, state, collect_custom_statistics_fn
+            )
         return None
 
     @staticmethod
-    async def _preprocess_send_request(_, endpoint: str, version: str = None, data: dict = None) -> Optional[dict]:
-        endpoint = "{}/{}".format(endpoint.strip("/"), version.strip("/")) if version else endpoint.strip("/")
+    async def _preprocess_send_request(
+        _, endpoint: str, version: str = None, data: dict = None
+    ) -> Optional[dict]:
+        endpoint = (
+            "{}/{}".format(endpoint.strip("/"), version.strip("/"))
+            if version
+            else endpoint.strip("/")
+        )
         base_url = BasePreprocessRequest.get_server_config().get("base_serving_url")
-        base_url = (base_url or BasePreprocessRequest._default_serving_base_url).strip("/")
+        base_url = (base_url or BasePreprocessRequest._default_serving_base_url).strip(
+            "/"
+        )
         url = "{}/{}".format(base_url, endpoint.strip("/"))
         return_value = await CustomAsyncPreprocessRequest.asyncio_to_thread(
-            request_post, url, json=data, timeout=BasePreprocessRequest._timeout)
+            request_post, url, json=data, timeout=BasePreprocessRequest._timeout
+        )
         if not return_value.ok:
             return None
         return return_value.json()

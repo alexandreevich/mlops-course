@@ -1,0 +1,12 @@
+site_name: lesson-07-project-documentation Docs
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - API: api.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python

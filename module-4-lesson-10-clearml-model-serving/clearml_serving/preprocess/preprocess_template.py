@@ -42,10 +42,10 @@ class Preprocess(object):
         pass
 
     def preprocess(
-            self,
-            body: Union[bytes, dict],
-            state: dict,
-            collect_custom_statistics_fn: Optional[Callable[[dict], None]],
+        self,
+        body: Union[bytes, dict],
+        state: dict,
+        collect_custom_statistics_fn: Optional[Callable[[dict], None]],
     ) -> Any:  # noqa
         """
         Optional: do something with the request data, return any type of object.
@@ -74,10 +74,10 @@ class Preprocess(object):
         return body
 
     def postprocess(
-            self,
-            data: Any,
-            state: dict,
-            collect_custom_statistics_fn: Optional[Callable[[dict], None]],
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Optional[Callable[[dict], None]],
     ) -> dict:  # noqa
         """
         Optional: post process the data returned from the model inference engine
@@ -104,10 +104,10 @@ class Preprocess(object):
         return data
 
     def process(
-            self,
-            data: Any,
-            state: dict,
-            collect_custom_statistics_fn: Optional[Callable[[dict], None]],
+        self,
+        data: Any,
+        state: dict,
+        collect_custom_statistics_fn: Optional[Callable[[dict], None]],
     ) -> Any:  # noqa
         """
         OPTIONAL: do something with the actual data, return any type of object.
@@ -136,10 +136,7 @@ class Preprocess(object):
         return data
 
     def send_request(  # noqa
-            self,
-            endpoint: str,
-            version: Optional[str] = None,
-            data: Optional[dict] = None
+        self, endpoint: str, version: Optional[str] = None, data: Optional[dict] = None
     ) -> Optional[dict]:
         """
         NOTICE! This method will be replaced in runtime, by the inference service

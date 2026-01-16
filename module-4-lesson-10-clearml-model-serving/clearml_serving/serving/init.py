@@ -6,16 +6,25 @@ from clearml_serving.serving.preprocess_service import BasePreprocessRequest
 
 def setup_task(force_threaded_logging=None):
     serving_service_task_id = os.environ.get("CLEARML_SERVING_TASK_ID", None)
-    inference_service_task_id = os.environ.get("CLEARML_INFERENCE_TASK_ID", False) # according Task.init() docs
+    inference_service_task_id = os.environ.get(
+        "CLEARML_INFERENCE_TASK_ID", False
+    )  # according Task.init() docs
 
     # always use background thread, it requires less memory
-    if force_threaded_logging or os.environ.get("CLEARML_BKG_THREAD_REPORT") in ("1", "Y", "y", "true"):
+    if force_threaded_logging or os.environ.get("CLEARML_BKG_THREAD_REPORT") in (
+        "1",
+        "Y",
+        "y",
+        "true",
+    ):
         os.environ["CLEARML_BKG_THREAD_REPORT"] = "1"
         Task._report_subprocess_enabled = False
 
     # get the serving controller task
     # noinspection PyProtectedMember
-    serving_task = ModelRequestProcessor._get_control_plane_task(task_id=serving_service_task_id)
+    serving_task = ModelRequestProcessor._get_control_plane_task(
+        task_id=serving_service_task_id
+    )
     # set to running (because we are here)
     if serving_task.status != "in_progress":
         serving_task.started(force=True)

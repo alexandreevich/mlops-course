@@ -10,14 +10,20 @@ df = pd.read_csv("uber.csv")
 # Предобработка
 df = df.dropna()
 df = df[
-    (df['fare_amount'] > 0) & 
-    (df['passenger_count'] > 0) & 
-    (df['passenger_count'] <= 6)
+    (df["fare_amount"] > 0) & (df["passenger_count"] > 0) & (df["passenger_count"] <= 6)
 ]
 
 # Фичи и таргет
-X = df[['pickup_latitude', 'pickup_longitude', 'dropoff_latitude', 'dropoff_longitude', 'passenger_count']]
-y = df['fare_amount']
+X = df[
+    [
+        "pickup_latitude",
+        "pickup_longitude",
+        "dropoff_latitude",
+        "dropoff_longitude",
+        "passenger_count",
+    ]
+]
+y = df["fare_amount"]
 
 # Обучающая и тестовая выборки
 X_train, X_test, y_train, y_test = train_test_split(
@@ -36,4 +42,6 @@ rmse = mean_squared_error(y_test, lr_preds)
 mae = mean_absolute_error(y_test, lr_preds)
 r2 = r2_score(y_test, lr_preds)
 
-print(f"Эксперимент завершён. Метрики модели: RMSE={rmse:.3f}, MAE={mae:.3f}, R2={r2:.3f}")
+print(
+    f"Эксперимент завершён. Метрики модели: RMSE={rmse:.3f}, MAE={mae:.3f}, R2={r2:.3f}"
+)

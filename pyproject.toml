@@ -1,0 +1,26 @@
+[project]
+name = "lesson-04-static-typing"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pandas>=2.3.3",
+    "pydantic>=2.12.5",
+    "scikit-learn>=1.6.1",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "ruff>=0.14.9",
+]
+
+[tool.mypy]
+python_version = "3.12"
+# Требует аннотации для всех функций
+disallow_untyped_defs = true
+# Предупреждает, если функция может вернуть Any
+warn_return_any = true
+# Игнорирует библиотеки без типов (например, старые или научные)
+ignore_missing_imports = true 

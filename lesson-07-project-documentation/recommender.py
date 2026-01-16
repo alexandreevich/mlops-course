@@ -137,7 +137,9 @@ def load_model() -> RecommenderModel:
     return joblib.load("model.pkl")
 
 
-def recommend_songs(model: RecommenderModel, track_title: str, N: int = 5) -> list[dict]:
+def recommend_songs(
+    model: RecommenderModel, track_title: str, N: int = 5
+) -> list[dict]:
     """
     Возвращает список рекомендованных треков для заданного трека.
 

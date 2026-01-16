@@ -56,13 +56,19 @@ serving_service_task_id, session_logger, instance_id = setup_task()
 # polling frequency
 model_sync_frequency_secs = 5
 try:
-    model_sync_frequency_secs = float(os.environ.get("CLEARML_SERVING_POLL_FREQ", model_sync_frequency_secs))
+    model_sync_frequency_secs = float(
+        os.environ.get("CLEARML_SERVING_POLL_FREQ", model_sync_frequency_secs)
+    )
 except (ValueError, TypeError):
     pass
 
 
-grpc_aio_ignore_errors = parse_grpc_errors(shlex.split(os.environ.get("CLEARML_SERVING_AIO_RPC_IGNORE_ERRORS", "")))
-grpc_aio_verbose_errors = parse_grpc_errors(shlex.split(os.environ.get("CLEARML_SERVING_AIO_RPC_VERBOSE_ERRORS", "")))
+grpc_aio_ignore_errors = parse_grpc_errors(
+    shlex.split(os.environ.get("CLEARML_SERVING_AIO_RPC_IGNORE_ERRORS", ""))
+)
+grpc_aio_verbose_errors = parse_grpc_errors(
+    shlex.split(os.environ.get("CLEARML_SERVING_AIO_RPC_VERBOSE_ERRORS", ""))
+)
 
 
 class CUDAException(Exception):
@@ -71,7 +77,11 @@ class CUDAException(Exception):
 
 
 # start FastAPI app
-app = FastAPI(title="ClearML Serving Service", version=__version__, description="ClearML Service Service router")
+app = FastAPI(
+    title="ClearML Serving Service",
+    version=__version__,
+    description="ClearML Service Service router",
+)
 
 
 @app.on_event("startup")
@@ -85,7 +95,11 @@ async def startup_event():
             )
         )
     else:
-        print("Starting up ModelRequestProcessor [pid={}] [service_id={}]".format(os.getpid(), serving_service_task_id))
+        print(
+            "Starting up ModelRequestProcessor [pid={}] [service_id={}]".format(
+                os.getpid(), serving_service_task_id
+            )
+        )
         processor = ModelRequestProcessor(
             task_id=serving_service_task_id,
             update_lock_guard=singleton_sync_lock,
@@ -107,7 +121,9 @@ async def exit_app():
 @app.exception_handler(CUDAException)
 async def cuda_exception_handler(request, exc):
     task = BackgroundTask(exit_app)
-    return PlainTextResponse("CUDA out of memory. Restarting service", status_code=500, background=task)
+    return PlainTextResponse(
+        "CUDA out of memory. Restarting service", status_code=500, background=task
+    )
 
 
 router = APIRouter(
@@ -122,44 +138,71 @@ router = APIRouter(
 @router.post("/{model_id}/{version}")
 @router.post("/{model_id}/")
 @router.post("/{model_id}")
-async def serve_model(model_id: str, version: Optional[str] = None, request: Union[bytes, Dict[Any, Any]] = None):
+async def serve_model(
+    model_id: str,
+    version: Optional[str] = None,
+    request: Union[bytes, Dict[Any, Any]] = None,
+):
     try:
-        return_value = await processor.process_request(base_url=model_id, version=version, request_body=request)
+        return_value = await processor.process_request(
+            base_url=model_id, version=version, request_body=request
+        )
     except EndpointNotFoundException as ex:
-        raise HTTPException(status_code=404, detail="Error processing request, endpoint was not found: {}".format(ex))
+        raise HTTPException(
+            status_code=404,
+            detail="Error processing request, endpoint was not found: {}".format(ex),
+        )
     except (EndpointModelLoadException, EndpointBackendEngineException) as ex:
         session_logger.report_text(
             "[{}] Exception [{}] {} while processing request: {}\n{}".format(
                 instance_id, type(ex), ex, request, "".join(traceback.format_exc())
             )
         )
-        raise HTTPException(status_code=422, detail="Error [{}] processing request: {}".format(type(ex), ex))
+        raise HTTPException(
+            status_code=422,
+            detail="Error [{}] processing request: {}".format(type(ex), ex),
+        )
     except ServingInitializationException as ex:
         session_logger.report_text(
             "[{}] Exception [{}] {} while loading serving inference: {}\n{}".format(
                 instance_id, type(ex), ex, request, "".join(traceback.format_exc())
             )
         )
-        raise HTTPException(status_code=500, detail="Error [{}] processing request: {}".format(type(ex), ex))
+        raise HTTPException(
+            status_code=500,
+            detail="Error [{}] processing request: {}".format(type(ex), ex),
+        )
     except ValueError as ex:
         session_logger.report_text(
             "[{}] Exception [{}] {} while processing request: {}\n{}".format(
                 instance_id, type(ex), ex, request, "".join(traceback.format_exc())
             )
         )
-        if "CUDA out of memory. " in str(ex) or "NVML_SUCCESS == r INTERNAL ASSERT FAILED" in str(ex):
+        if "CUDA out of memory. " in str(
+            ex
+        ) or "NVML_SUCCESS == r INTERNAL ASSERT FAILED" in str(ex):
             raise CUDAException(exception=ex)
         else:
-            raise HTTPException(status_code=422, detail="Error [{}] processing request: {}".format(type(ex), ex))
+            raise HTTPException(
+                status_code=422,
+                detail="Error [{}] processing request: {}".format(type(ex), ex),
+            )
     except AioRpcError as ex:
         if grpc_aio_verbose_errors and ex.code() in grpc_aio_verbose_errors:
             session_logger.report_text(
-                "[{}] Exception [AioRpcError] {} while processing request: {}".format(instance_id, ex, request)
+                "[{}] Exception [AioRpcError] {} while processing request: {}".format(
+                    instance_id, ex, request
+                )
             )
         elif not grpc_aio_ignore_errors or ex.code() not in grpc_aio_ignore_errors:
-            session_logger.report_text("[{}] Exception [AioRpcError] status={} ".format(instance_id, ex.code()))
+            session_logger.report_text(
+                "[{}] Exception [AioRpcError] status={} ".format(instance_id, ex.code())
+            )
         raise HTTPException(
-            status_code=500, detail="Error [AioRpcError] processing request: status={}".format(ex.code())
+            status_code=500,
+            detail="Error [AioRpcError] processing request: status={}".format(
+                ex.code()
+            ),
         )
     except Exception as ex:
         session_logger.report_text(
@@ -167,7 +210,10 @@ async def serve_model(model_id: str, version: Optional[str] = None, request: Uni
                 instance_id, type(ex), ex, request, "".join(traceback.format_exc())
             )
         )
-        raise HTTPException(status_code=500, detail="Error  [{}] processing request: {}".format(type(ex), ex))
+        raise HTTPException(
+            status_code=500,
+            detail="Error  [{}] processing request: {}".format(type(ex), ex),
+        )
     return return_value
 
 
